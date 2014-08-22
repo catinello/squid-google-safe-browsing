@@ -10,9 +10,16 @@ Squid 3.4
 
 # Usage: #
 
+Get the amount of cpu cores available:
+
+    $ grep ^processor /proc/cpuinfo | tail -n 1 | awk -F': ' '{print $2}'
+
+Use this number eg. 4 (on a dual-core with hyperthreading) for the following concurrency setting.
+
 edit /etc/squid/squid.conf
 
-    url_rewrite_program /usr/local/bin/squid-gsb-x86_64 GSB_APIKEY
+    url_rewrite_children 20 startup=0 idle=1 concurrency=4
+    url_rewrite_program /usr/local/bin/squid-gsb GSB_APIKEY
 
 # Environment Variable: #
 
@@ -32,10 +39,6 @@ A hint that your API key is invalid:
 
     Apr 07 15:47:48 03-proxy squid-gsb[27416]: Not Authorized
 
-
-# ToDo: #
-
-- Use concurrency from squid by default.
 
 # Background: #
 

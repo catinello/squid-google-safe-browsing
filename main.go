@@ -5,19 +5,16 @@ import (
 	"bytes"
 	"fmt"
 	"log/syslog"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 )
 
 //constants
-const version = "0.1"
+const version = "0.2"
 const name = "squid-gsb"
 const envvar = "GSB_APIKEY"
 const keylen = 58 //length google safe browsing api key
-const timeout = 4 //timeout for http.Get in seconds
 
 func usage() {
 	fmt.Println("Usage: " + name + " [" + envvar + "]")
@@ -60,7 +57,7 @@ func main() {
 		processQuery(line, logger, key)
 
 		if err != nil {
-			logger.Crit(err.Error())
+			logger.Crit("Loop kill: " + err.Error())
 			os.Exit(2)
 		}
 	}
@@ -69,8 +66,12 @@ func main() {
 func processQuery(line []byte, logger *syslog.Writer, key string) {
 	//split line
 	sl := bytes.Split(line, []byte(" "))
-	//get first blob of line
-	raw, err := url.Parse(string(bytes.ToLower(sl[0])))
+
+	//get first blob of line (channel-id)
+	id := string(sl[0])
+
+	//get second blob of line (url)
+	raw, err := url.Parse(string(bytes.ToLower(sl[1])))
 
 	if err != nil {
 		logger.Warning(err.Error())
@@ -78,53 +79,33 @@ func processQuery(line []byte, logger *syslog.Writer, key string) {
 
 	//use only scheme and host
 	addr := []byte(raw.Scheme + "://" + raw.Host)
-	//addr := []byte(raw.Host)
 
 	var retval []byte
 	result := askGoogle(url.QueryEscape(string(addr)), key)
 
 	if result == 200 {
-		retval = []byte("OK url=https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host + " 302:https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host)
+		retval = []byte(id + " OK url=https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host + " 302:https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host)
 		logger.Alert("Blocked Site: " + string(addr))
 	} else if result > 500 {
-		retval = []byte("BH message=Service Unavailable")
+		retval = []byte(id + " BH")
 		logger.Crit("Service Unavailable")
 	} else if result > 400 {
-		retval = []byte("BH message=Not Authorized")
+		retval = []byte(id + " BH")
 		logger.Crit("Not Authorized")
 	} else {
-		retval = []byte("ERR")
+		retval = []byte(id + " ERR")
 	}
 
 	fmt.Printf("%s\n", retval)
-
 }
 
-// Wrapper to pass timeout constant for http.Get -> net.DialTimeout
-func customDialer(timeout time.Duration) func(network, address string) (net.Conn, error) {
-	return func(network, address string) (net.Conn, error) {
-		c, err := net.DialTimeout(network, address, timeout)
-
-		return c, err
-	}
-}
-
-// Ask Google safe browsing with API call
+// Google safe browsing API call
 func askGoogle(url, apikey string) int {
 	call := fmt.Sprintf("https://sb-ssl.google.com/safebrowsing/api/lookup?client=api&apikey=%s&appver=%s&pver=3.0&url=%s", apikey, version, url)
-
-	//http client for custom timeout
-	client := http.Client{
-		Transport: &http.Transport{
-			Dial: customDialer(time.Duration(timeout * time.Second)),
-		},
-	}
-
-	resp, err := client.Get(call)
+	resp, err := http.Get(call)
 
 	if err != nil {
-		//resp.StatusCode = 599 //service not available
-		resp = &http.Response{StatusCode: 599}
+		resp.StatusCode = 599 //service not available
 	}
 
 	return resp.StatusCode

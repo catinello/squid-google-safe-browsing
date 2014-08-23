@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 )
 
 //constants
@@ -15,6 +17,7 @@ const version = "0.2"
 const name = "squid-gsb"
 const envvar = "GSB_APIKEY"
 const keylen = 58 //length google safe browsing api key
+const debugfile = "/tmp/squid-gsb.debug"
 
 func usage() {
 	fmt.Println("Usage: " + name + " [" + envvar + "]")
@@ -48,13 +51,19 @@ func main() {
 		panic(err)
 	}
 
+	//to debug touch /tmp/squid-gsb.debug
+	var debug bool
+	if _, err := os.Stat(debugfile); err == nil {
+		debug = true
+	}
+
 	//loop forever
 	for {
 		//read stdin line
 		bio := bufio.NewReader(os.Stdin)
 		line, _, err := bio.ReadLine()
 
-		processQuery(line, logger, key)
+		processQuery(line, logger, key, debug)
 
 		if err != nil {
 			logger.Crit("Loop kill: " + err.Error())
@@ -63,28 +72,34 @@ func main() {
 	}
 }
 
-func processQuery(line []byte, logger *syslog.Writer, key string) {
+func processQuery(line []byte, logger *syslog.Writer, key string, debug bool) {
 	//split line
 	sl := bytes.Split(line, []byte(" "))
 
 	//get first blob of line (channel-id)
 	id := string(sl[0])
 
-	//get second blob of line (url)
-	raw, err := url.Parse(string(bytes.ToLower(sl[1])))
+	var addr []byte
 
-	if err != nil {
-		logger.Warning(err.Error())
+	//use scheme and host
+	if strings.HasPrefix(string(sl[1]), "http") {
+		//get second blob of line (url)
+		raw, err := url.Parse(string(bytes.ToLower(sl[1])))
+
+		if err != nil {
+			logger.Warning(err.Error())
+		}
+
+		addr = []byte(raw.Scheme + "://" + raw.Host)
+	} else {
+		addr = []byte("http://" + strings.Split(string(sl[1]), "/")[0])
 	}
-
-	//use only scheme and host
-	addr := []byte(raw.Scheme + "://" + raw.Host)
 
 	var retval []byte
 	result := askGoogle(url.QueryEscape(string(addr)), key)
 
 	if result == 200 {
-		retval = []byte(id + " OK url=https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host + " 302:https://www.google.com/safebrowsing/diagnostic?site=" + raw.Host)
+		retval = []byte(id + " OK url=https://www.google.com/safebrowsing/diagnostic?site=" + string(addr) + " 302:https://www.google.com/safebrowsing/diagnostic?site=" + string(addr))
 		logger.Alert("Blocked Site: " + string(addr))
 	} else if result > 500 {
 		retval = []byte(id + " BH")
@@ -94,6 +109,10 @@ func processQuery(line []byte, logger *syslog.Writer, key string) {
 		logger.Crit("Not Authorized")
 	} else {
 		retval = []byte(id + " ERR")
+	}
+
+	if debug {
+		logger.Info(string(addr) + " -> " + strconv.Itoa(result) + ": " + string(retval))
 	}
 
 	fmt.Printf("%s\n", retval)

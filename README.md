@@ -31,13 +31,24 @@ edit /etc/squid/squid.conf
 
 # Environment Variable: #
 
-It is possible to use an environment variable to store the API key.
+It is possible to use an environment variable to store the API key for testing purposes.
 
     $ export GSB_APIKEY=WHATEVERYOURAPIKEYIS
 
+# Debugging: #
+
+Create the following file to enable debugging which is checked pre loop which means you eventually have to restart the service.
+
+    $ touch /tmp/squid-gsb.debug
+    $ sudo systemctl restart squid #optional
+
+You would get the following output in your syslog (info): url -> gsb-result: channel-id squid-result-code
+
+    Aug 23 17:19:59 03-proxy squid-gsb[28523]: http://www.google.com:443 -> 204: 0 ERR
+
 # Logging: #
 
-All errors and blocks are being logged to your syslog facility.
+All errors and blocks are being logged to your syslog facility (critical).
 
 A blocked and redirected access looks like this:
 
@@ -46,7 +57,6 @@ A blocked and redirected access looks like this:
 A hint that your API key is invalid:
 
     Apr 07 15:47:48 03-proxy squid-gsb[27416]: Not Authorized
-
 
 # Background: #
 

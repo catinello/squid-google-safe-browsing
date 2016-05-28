@@ -1,6 +1,7 @@
 # Requirement: #
 
-Squid 3.4
+- Squid 3.4
+- Safe-Browsing-API v3 Key (DEPRECATED!!! available only until early 2017)
 
 # Get API Key: #
 
@@ -62,7 +63,7 @@ A hint that your API key is invalid:
 
 I know that this feature is already build-in in chrome and firefox. Still there are other browsers out there and my main reason was to protect people from themselfs.
 
-A user can't work around a site warning from chrome or firefox. If there is really a false positive you can always whitelist it on the squid proxy.
+A user can't work around a site warning as in chrome or firefox. If there is really a false positive you can whitelist it through the squid proxy configuration.
 
 I have no affiliation with Google.
 

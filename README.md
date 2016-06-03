@@ -1,7 +1,11 @@
+# Deprecation Notice: #
+
+Google will stop supporting the v3 API in early 2017 and I abandoned this project long ago.
+
 # Requirement: #
 
 - Squid 3.4
-- Safe-Browsing-API v3 Key (DEPRECATED!!! available only until early 2017)
+- Safe-Browsing-API v3 Key
 
 # Get API Key: #
 
@@ -9,13 +13,12 @@
 - Point your browser to https://developers.google.com/safe-browsing/key_signup
 - Accept the terms and condition and generate your API key
 
-# Install: #
+# Compile: #
 
-Just download the appropiate file as simple as that.
-
-    $ sudo curl -o /usr/local/bin/squid-gsb https://raw.githubusercontent.com/catinello/squid-google-safe-browsing/master/bin/squid-gsb-$(uname -m)
-
-Supported pre-compiled architectures are PC-64bit (x86_64) and Raspberry Pi (armv61). I'm just using and testing on those 2 architectures. It is compilable for others though.
+    $ cd $GOPATH
+    $ go get -d github.com/catinello/squid-google-safe-browsing
+    $ cd src/github.com/catinello/squid-google-safe-browsing
+    $ go build -o squid-gsb
 
 # Usage: #
 
@@ -61,9 +64,9 @@ A hint that your API key is invalid:
 
 # Background: #
 
-I know that this feature is already build-in in chrome and firefox. Still there are other browsers out there and my main reason was to protect people from themselfs.
+I know that this feature is already build-in in chrome and firefox. Still there are other browsers out there and my main reason is to protect people from themselfs.
 
-A user can't work around a site warning as in chrome or firefox. If there is really a false positive you can whitelist it through the squid proxy configuration.
+This way a user can't work around a site warning as in chrome or firefox. If there is a false positive, then you can simple whitelist it through the squid proxy configuration.
 
 I have no affiliation with Google.
 
